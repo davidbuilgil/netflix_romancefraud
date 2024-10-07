@@ -12,7 +12,7 @@ p_load(ggplot2, readxl, janitor, dplyr, ggthemes, tidyr, ggpubr, lubridate, cowp
 #load data
 #Time variable has been added to the dataframe to capture natural growth in RF over time
 #Added a documentary * time variable for each documentary to capture months since documentary was released
-romance_fraud <- read_excel(here("data/romance_fraud_time_rev.xlsx")) %>% clean_names()
+romance_fraud <- read_excel(here("data/romance_fraud_time.xlsx")) %>% clean_names()
 
 #make sure R treats month variable as a date
 romance_fraud$month <- as.Date(romance_fraud$month)
@@ -160,37 +160,6 @@ summary(model.1.nb)
 model.1.nb.ns <- glm.nb(dating_scam ~ t + doc_sum +
                        spring + summer + autumn + covid + doc_sum*t,
                      data = romance_fraud)
-
-#create a new data frame with doc_sum set to 0 for counterfactual predictions
-romance_fraud_no_docs <- romance_fraud
-romance_fraud_no_docs$doc_sum <- 0  # Set doc_sum to 0
-
-#use model to predict the dependent variable with doc_sum = 0
-predicted_values <- predict(model.1.nb.ns, newdata = romance_fraud_no_docs, type = "response", se.fit = TRUE)
-
-#extract the fitted values and confidence intervals
-predicted_fit <- predicted_values$fit
-predicted_se <- predicted_values$se.fit
-lower_ci <- predicted_fit - 1.96 * predicted_se
-upper_ci <- predicted_fit + 1.96 * predicted_se
-
-#add predicted values and confidence intervals to data
-romance_fraud_no_docs$predicted_dating_scam <- predicted_fit
-romance_fraud_no_docs$lower_ci <- lower_ci
-romance_fraud_no_docs$upper_ci <- upper_ci
-
-#calculate total fraud and predicted frauds during period of documentaries (up to 6 months after last documentary)
-#calculate predicted excess in reports due to documentaries
-romance_fraud_no_docs %>%
-  filter(id >= 59 & id <= 101) %>%
-  summarise(actual = sum(dating_scam),
-            predicted = sum(predicted_dating_scam),
-            predicted_lci = sum(lower_ci),
-            predicted_uci = sum(upper_ci),
-            perc_diff_predicted = ((actual - predicted) / predicted) * 100,
-            perc_diff_lci = ((actual - predicted_lci) / predicted_lci) * 100,
-            perc_diff_uci = ((actual - predicted_uci) / predicted_uci) * 100)
-#between 0.3% and 13.6% predicted excess in reports
 
 #Model 2 Poisson regression via generalized estimating equations (GEE) with AR(1) - effect of combined documentaries on news articles
 model.2.gee <- geeglm(news_articles ~ t + doc_sum +
@@ -445,5 +414,3 @@ rsq(model.6.nb) #Pseudo R2
 rsq(model.7.nb) #Pseudo R2
 rsq(model.8.nb) #Pseudo R2
 rsq(model.9.nb) #Pseudo R2
-
-
